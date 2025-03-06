@@ -1,12 +1,15 @@
 #include "KMapSolver.hpp"
 #include <iostream>
 #include <stdexcept>
+#include <set>
 
+// Constructor
 KMapSolver::KMapSolver(const std::vector<std::vector<int>>& kmap) : kmap(kmap) {
     numVars = numVariables();
     variables = getVariableNames(numVars);
 }
 
+// Determine the number of variables based on the K-map size
 int KMapSolver::numVariables() {
     int rows = kmap.size();
     int cols = kmap[0].size();
@@ -21,6 +24,7 @@ int KMapSolver::numVariables() {
     }
 }
 
+// Get variable names based on the number of variables
 std::vector<std::string> KMapSolver::getVariableNames(int num_vars) {
     if (num_vars == 2) {
         return {"A", "B"};
@@ -33,6 +37,7 @@ std::vector<std::string> KMapSolver::getVariableNames(int num_vars) {
     }
 }
 
+// Generate term from rows and columns
 std::string KMapSolver::getTerm(const std::set<int>& rows, const std::set<int>& cols, bool isSOP) {
     std::vector<std::string> terms;
 
@@ -103,18 +108,11 @@ std::string KMapSolver::getTerm(const std::set<int>& rows, const std::set<int>& 
             term += terms[i];
         }
     }
-    std::cout << "Generated term: " << term << " for rows: ";
-    for (const auto& row : rows) {
-        std::cout << row << " ";
-    }
-    std::cout << "and columns: ";
-    for (const auto& col : cols) {
-        std::cout << col << " ";
-    }
-    std::cout << std::endl;
+
     return term;
 }
 
+// Check if a cell is in a group
 bool KMapSolver::isInGroup(const std::vector<std::pair<int, int>>& group, int r, int c) {
     for (const auto& cell : group) {
         if (cell.first == r && cell.second == c) {
@@ -124,6 +122,7 @@ bool KMapSolver::isInGroup(const std::vector<std::pair<int, int>>& group, int r,
     return false;
 }
 
+// Check if a cell is inside a 2x2 group
 bool KMapSolver::isInside2x2Group(int r, int c) {
     for (const auto& grouping : twoByTwoGroupings) {
         if (isInGroup(grouping.cells, r, c)) {
@@ -133,10 +132,15 @@ bool KMapSolver::isInside2x2Group(int r, int c) {
     return false;
 }
 
+// Find groupings
 void KMapSolver::findGroupings(bool isSOP) {
     int rows = kmap.size();
     int cols = kmap[0].size();
     std::vector<std::vector<bool>> visited(rows, std::vector<bool>(cols, false));
+
+    auto getWrappedIndex = [&](int index, int maxIndex) {
+        return (index + maxIndex) % maxIndex;
+    };
 
     // Check for corner wrap-around groupings
     if ((isSOP && kmap[0][0] == 1 && kmap[0][cols - 1] == 1 && kmap[rows - 1][0] == 1 && kmap[rows - 1][cols - 1] == 1) ||
@@ -156,24 +160,22 @@ void KMapSolver::findGroupings(bool isSOP) {
         }
         twoByTwoGroupings.push_back(grouping);
         visited[0][0] = visited[0][cols - 1] = visited[rows - 1][0] = visited[rows - 1][cols - 1] = true;
-        std::cout << "Found corner wrap-around grouping at (0,0), (0," << cols - 1 << "), (" << rows - 1 << ",0), (" << rows - 1 << "," << cols - 1 << ")" << std::endl;
     }
 
     // Find 2x2 groupings
     for (int r = 0; r < rows; ++r) {
         for (int c = 0; c < cols; ++c) {
             if (!visited[r][c] && ((isSOP && kmap[r][c] == 1) || (!isSOP && kmap[r][c] == 0))) {
-                if (r + 1 < rows && c + 1 < cols &&
-                    kmap[r][c] == kmap[r + 1][c] &&
-                    kmap[r][c] == kmap[r][c + 1] &&
-                    kmap[r][c] == kmap[r + 1][c + 1]) {
+                int rNext = getWrappedIndex(r + 1, rows);
+                int cNext = getWrappedIndex(c + 1, cols);
+                if (kmap[r][c] == kmap[rNext][c] && kmap[r][c] == kmap[r][cNext] && kmap[r][c] == kmap[rNext][cNext]) {
                     Grouping grouping;
-                    std::set<int> groupRows = {r, r + 1};
-                    std::set<int> groupCols = {c, c + 1};
+                    std::set<int> groupRows = {r, rNext};
+                    std::set<int> groupCols = {c, cNext};
                     grouping.cells.push_back({r, c});
-                    grouping.cells.push_back({r + 1, c});
-                    grouping.cells.push_back({r, c + 1});
-                    grouping.cells.push_back({r + 1, c + 1});
+                    grouping.cells.push_back({rNext, c});
+                    grouping.cells.push_back({r, cNext});
+                    grouping.cells.push_back({rNext, cNext});
                     grouping.term = getTerm(groupRows, groupCols, isSOP);
                     if (isSOP) {
                         sopGroupings.push_back(grouping);
@@ -181,8 +183,7 @@ void KMapSolver::findGroupings(bool isSOP) {
                         posGroupings.push_back(grouping);
                     }
                     twoByTwoGroupings.push_back(grouping);
-                    visited[r][c] = visited[r + 1][c] = visited[r][c + 1] = visited[r + 1][c + 1] = true;
-                    std::cout << "Found 2x2 grouping at (" << r << "," << c << ")" << std::endl;
+                    visited[r][c] = visited[rNext][c] = visited[r][cNext] = visited[rNext][cNext] = true;
                 }
             }
         }
@@ -192,48 +193,49 @@ void KMapSolver::findGroupings(bool isSOP) {
     for (int r = 0; r < rows; ++r) {
         for (int c = 0; c < cols; ++c) {
             if (!visited[r][c] && ((isSOP && kmap[r][c] == 1) || (!isSOP && kmap[r][c] == 0))) {
-                if (r + 1 < rows && kmap[r][c] == kmap[r + 1][c]) {
+                int rNext = getWrappedIndex(r + 1, rows);
+                int cNext = getWrappedIndex(c + 1, cols);
+
+                if (kmap[r][c] == kmap[rNext][c]) {
                     Grouping grouping;
-                    std::set<int> groupRows = {r, r + 1};
+                    std::set<int> groupRows = {r, rNext};
                     std::set<int> groupCols = {c};
                     grouping.cells.push_back({r, c});
-                    grouping.cells.push_back({r + 1, c});
+                    grouping.cells.push_back({rNext, c});
                     grouping.term = getTerm(groupRows, groupCols, isSOP);
                     if (isSOP) {
                         sopGroupings.push_back(grouping);
                     } else {
                         posGroupings.push_back(grouping);
                     }
-                    visited[r][c] = visited[r + 1][c] = true;
-                    std::cout << "Found 1x2 grouping at (" << r << "," << c << ")" << std::endl;
-                } else if (c + 1 < cols && kmap[r][c] == kmap[r][c + 1]) {
+                    visited[r][c] = visited[rNext][c] = true;
+                } else if (kmap[r][c] == kmap[r][cNext]) {
                     Grouping grouping;
                     std::set<int> groupRows = {r};
-                    std::set<int> groupCols = {c, c + 1};
+                    std::set<int> groupCols = {c, cNext};
                     grouping.cells.push_back({r, c});
-                    grouping.cells.push_back({r, c + 1});
+                    grouping.cells.push_back({r, cNext});
                     grouping.term = getTerm(groupRows, groupCols, isSOP);
                     if (isSOP) {
                         sopGroupings.push_back(grouping);
                     } else {
                         posGroupings.push_back(grouping);
                     }
-                    visited[r][c] = visited[r][c + 1] = true;
-                    std::cout << "Found 2x1 grouping at (" << r << "," << c << ")" << std::endl;
+                    visited[r][c] = visited[r][cNext] = true;
                 }
 
                 // Try to group with cells already in a group
-                if (r + 1 < rows && !visited[r + 1][c] && isInGroup(sopGroupings.back().cells, r + 1, c)) {
+                if (rNext < rows && !visited[rNext][c] && isInGroup(sopGroupings.back().cells, rNext, c)) {
                     sopGroupings.back().cells.push_back({r, c});
-                    sopGroupings.back().term = getTerm({r, r + 1}, {c}, isSOP);
+                    sopGroupings.back().term = getTerm({r, rNext}, {c}, isSOP);
                     visited[r][c] = true;
                 } else if (r - 1 >= 0 && !visited[r - 1][c] && isInGroup(sopGroupings.back().cells, r - 1, c)) {
                     sopGroupings.back().cells.push_back({r, c});
                     sopGroupings.back().term = getTerm({r - 1, r}, {c}, isSOP);
                     visited[r][c] = true;
-                } else if (c + 1 < cols && !visited[r][c + 1] && isInGroup(sopGroupings.back().cells, r, c + 1)) {
+                } else if (cNext < cols && !visited[r][cNext] && isInGroup(sopGroupings.back().cells, r, cNext)) {
                     sopGroupings.back().cells.push_back({r, c});
-                    sopGroupings.back().term = getTerm({r}, {c, c + 1}, isSOP);
+                    sopGroupings.back().term = getTerm({r}, {c, cNext}, isSOP);
                     visited[r][c] = true;
                 } else if (c - 1 >= 0 && !visited[r][c - 1] && isInGroup(sopGroupings.back().cells, r, c - 1)) {
                     sopGroupings.back().cells.push_back({r, c});
@@ -259,7 +261,6 @@ void KMapSolver::findGroupings(bool isSOP) {
                     posGroupings.push_back(grouping);
                 }
                 visited[r][c] = true;
-                std::cout << "Found single cell grouping at (" << r << "," << c << ")" << std::endl;
             }
         }
     }
@@ -281,7 +282,6 @@ void KMapSolver::findGroupings(bool isSOP) {
                 posGroupings.push_back(grouping);
             }
             visited[0][c] = visited[rows - 1][c] = true;
-            std::cout << "Found vertical wrap-around grouping at (0," << c << ") and (" << rows - 1 << "," << c << ")" << std::endl;
         }
     }
 
@@ -302,22 +302,29 @@ void KMapSolver::findGroupings(bool isSOP) {
                 posGroupings.push_back(grouping);
             }
             visited[r][0] = visited[r][cols - 1] = true;
-            std::cout << "Found horizontal wrap-around grouping at (" << r << ",0) and (" << r << "," << cols - 1 << ")" << std::endl;
         }
     }
 }
 
+// Generate expression with unique terms
 std::string KMapSolver::generateExpression(const std::list<Grouping>& groupings, bool isSOP) {
+    std::set<std::string> uniqueTerms;
     std::string expression;
+
     for (const auto& grouping : groupings) {
-        if (!expression.empty()) {
-            expression += isSOP ? " + " : " ";
+        if (uniqueTerms.find(grouping.term) == uniqueTerms.end()) {
+            if (!expression.empty()) {
+                expression += isSOP ? " + " : " ";
+            }
+            expression += isSOP ? grouping.term : "(" + grouping.term + ")";
+            uniqueTerms.insert(grouping.term);
         }
-        expression += isSOP ? grouping.term : "(" + grouping.term + ")";
     }
+
     return expression;
 }
 
+// Generate SOP and POS expressions
 std::pair<std::string, std::string> KMapSolver::kmapToSOPandPOS() {
     findGroupings(true);  // Find SOP groupings
     findGroupings(false); // Find POS groupings

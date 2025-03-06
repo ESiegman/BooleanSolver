@@ -4,9 +4,6 @@
 #include <bitset>
 #include <cmath>
 #include <map>
-#include <sstream>
-#include <stack>
-#include <stdexcept>
 #include <algorithm>
 
 std::vector<std::vector<int>> BooleanProcessor::booleanToTruthTable(const std::string& booleanExpression) {
@@ -26,21 +23,16 @@ std::vector<std::vector<int>> BooleanProcessor::booleanToTruthTable(const std::s
             truthTable[i][j] = bits[numVars - j - 1];
         }
         try {
-            std::cout << "Evaluating row " << i << " with variables: ";
             for (const auto& var : varMap) {
-                std::cout << var.first << "=" << var.second << " ";
             }
-            std::cout << std::endl;
             truthTable[i][numVars] = evaluateExpression(booleanExpression, varMap);
-            std::cout << "Result: " << truthTable[i][numVars] << std::endl;
         } catch (const std::exception& e) {
-            std::cerr << "Error evaluating expression for row " << i << ": " << e.what() << std::endl;
             throw;
         }
     }
-
     return truthTable;
 }
+
 
 int BooleanProcessor::evaluateBooleanExpression(const std::string& booleanExpression, const std::vector<int>& variables) {
     auto varSet = extractVariables(booleanExpression);
@@ -66,11 +58,17 @@ std::vector<std::vector<int>> BooleanProcessor::truthTableToKMap(const std::vect
     int kmapSize = sqrt(size);
 
     std::vector<std::vector<int>> kmap(kmapSize, std::vector<int>(kmapSize));
+
+    auto binaryToGray = [](int num) {
+        return num ^ (num >> 1);
+    };
+    
     for (int i = 0; i < size; ++i) {
-        int rowIndex = ((i & 1) << 1) | ((i >> 2) & 1);
-        int colIndex = ((i >> 1) & 1) | ((i >> 3) & 2);
+        int rowIndex = binaryToGray(i / kmapSize);
+        int colIndex = binaryToGray(i % kmapSize);
         kmap[rowIndex][colIndex] = truthTable[i][numVars];
     }
+
     return kmap;
 }
 
