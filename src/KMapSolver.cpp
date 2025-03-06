@@ -188,11 +188,11 @@ void KMapSolver::findGroupings(bool isSOP) {
         }
     }
 
-    // Find 1x2 and 2x1 groupings with cross-referencing against 2x2 groupings
+    // Find 1x2 and 2x1 groupings that can group with already grouped cells
     for (int r = 0; r < rows; ++r) {
         for (int c = 0; c < cols; ++c) {
             if (!visited[r][c] && ((isSOP && kmap[r][c] == 1) || (!isSOP && kmap[r][c] == 0))) {
-                if (r + 1 < rows && kmap[r][c] == kmap[r + 1][c] && !isInside2x2Group(r, c) && !isInside2x2Group(r + 1, c)) {
+                if (r + 1 < rows && kmap[r][c] == kmap[r + 1][c]) {
                     Grouping grouping;
                     std::set<int> groupRows = {r, r + 1};
                     std::set<int> groupCols = {c};
@@ -206,7 +206,7 @@ void KMapSolver::findGroupings(bool isSOP) {
                     }
                     visited[r][c] = visited[r + 1][c] = true;
                     std::cout << "Found 1x2 grouping at (" << r << "," << c << ")" << std::endl;
-                } else if (c + 1 < cols && kmap[r][c] == kmap[r][c + 1] && !isInside2x2Group(r, c) && !isInside2x2Group(r, c + 1)) {
+                } else if (c + 1 < cols && kmap[r][c] == kmap[r][c + 1]) {
                     Grouping grouping;
                     std::set<int> groupRows = {r};
                     std::set<int> groupCols = {c, c + 1};
@@ -221,11 +221,30 @@ void KMapSolver::findGroupings(bool isSOP) {
                     visited[r][c] = visited[r][c + 1] = true;
                     std::cout << "Found 2x1 grouping at (" << r << "," << c << ")" << std::endl;
                 }
+
+                // Try to group with cells already in a group
+                if (r + 1 < rows && !visited[r + 1][c] && isInGroup(sopGroupings.back().cells, r + 1, c)) {
+                    sopGroupings.back().cells.push_back({r, c});
+                    sopGroupings.back().term = getTerm({r, r + 1}, {c}, isSOP);
+                    visited[r][c] = true;
+                } else if (r - 1 >= 0 && !visited[r - 1][c] && isInGroup(sopGroupings.back().cells, r - 1, c)) {
+                    sopGroupings.back().cells.push_back({r, c});
+                    sopGroupings.back().term = getTerm({r - 1, r}, {c}, isSOP);
+                    visited[r][c] = true;
+                } else if (c + 1 < cols && !visited[r][c + 1] && isInGroup(sopGroupings.back().cells, r, c + 1)) {
+                    sopGroupings.back().cells.push_back({r, c});
+                    sopGroupings.back().term = getTerm({r}, {c, c + 1}, isSOP);
+                    visited[r][c] = true;
+                } else if (c - 1 >= 0 && !visited[r][c - 1] && isInGroup(sopGroupings.back().cells, r, c - 1)) {
+                    sopGroupings.back().cells.push_back({r, c});
+                    sopGroupings.back().term = getTerm({r}, {c - 1, c}, isSOP);
+                    visited[r][c] = true;
+                }
             }
         }
     }
 
-    // Find single cell groupings with cross-referencing against 2x2 groupings
+    // Find single cell groupings without adding adjacent cells
     for (int r = 0; r < rows; ++r) {
         for (int c = 0; c < cols; ++c) {
             if (!visited[r][c] && !isInside2x2Group(r, c) && ((isSOP && kmap[r][c] == 1) || (!isSOP && kmap[r][c] == 0))) {
@@ -241,25 +260,6 @@ void KMapSolver::findGroupings(bool isSOP) {
                 }
                 visited[r][c] = true;
                 std::cout << "Found single cell grouping at (" << r << "," << c << ")" << std::endl;
-
-                // Try to group with adjacent cells in 2x2 groups
-                if (r + 1 < rows && isInside2x2Group(r + 1, c)) {
-                    Grouping &lastGrouping = sopGroupings.back();
-                    lastGrouping.cells.push_back({r + 1, c});
-                    lastGrouping.term = getTerm({r, r + 1}, {c}, isSOP);
-                } else if (r - 1 >= 0 && isInside2x2Group(r - 1, c)) {
-                    Grouping &lastGrouping = sopGroupings.back();
-                    lastGrouping.cells.push_back({r - 1, c});
-                    lastGrouping.term = getTerm({r - 1, r}, {c}, isSOP);
-                } else if (c + 1 < cols && isInside2x2Group(r, c + 1)) {
-                    Grouping &lastGrouping = sopGroupings.back();
-                    lastGrouping.cells.push_back({r, c + 1});
-                    lastGrouping.term = getTerm({r}, {c, c + 1}, isSOP);
-                } else if (c - 1 >= 0 && isInside2x2Group(r, c - 1)) {
-                    Grouping &lastGrouping = sopGroupings.back();
-                    lastGrouping.cells.push_back({r, c - 1});
-                    lastGrouping.term = getTerm({r}, {c - 1, c}, isSOP);
-                }
             }
         }
     }

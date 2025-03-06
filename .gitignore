@@ -11,6 +11,7 @@ CMakeDirectoryInformation.cmake
 CMakeConfigureLog.yaml
 cmake.check_cache
 
+
 # Ignore temporary files and directories
 *.tmp
 *.log
@@ -20,3 +21,4 @@ cmake.check_cache
 # Ignore executables
 a.out
 KMapSolver
+flake.lock
