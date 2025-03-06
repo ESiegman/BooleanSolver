@@ -1,0 +1,22 @@
+# Ignore build directory
+build/
+
+# Ignore CMake files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+Makefile2
+CMakeDirectoryInformation.cmake
+CMakeConfigureLog.yaml
+cmake.check_cache
+
+# Ignore temporary files and directories
+*.tmp
+*.log
+*.bak
+*.swp
+
+# Ignore executables
+a.out
+KMapSolver
