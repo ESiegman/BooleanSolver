@@ -71,7 +71,7 @@ To use the `BooleanSolver`, run the compiled binary in the `build` directory.
 ./BooleanSolver
 ```
 
-Replace `"your_boolean_expression"` with the boolean expression you want to solve.
+Equations are written in plain English, for example, "A xor B and (C or D)"
 
 ## Contributing
 Contributions are welcome! Please follow these steps to contribute:
