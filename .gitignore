@@ -21,4 +21,3 @@ cmake.check_cache
 # Ignore executables
 a.out
 KMapSolver
-flake.lock
